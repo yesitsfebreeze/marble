@@ -4,7 +4,7 @@ description: ...
 ---
 
 <!-- Either point an agent here, or copy the file as an agent -->
-
+<!-- Edit this file inline to start the `@setup` and configure the node -->
 
 # █ CONFIG
 ```yaml
