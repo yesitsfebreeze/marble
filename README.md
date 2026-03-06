@@ -7,8 +7,11 @@ It remembers things, reasons about them, and can pass notes between other agents
 
 It is the merged form of two earlier agents — **brian** (who had a live memory system and
 could push notes to a peer) and **carl** (who was that peer, living inside brian's repo).
-Marble keeps both halves in a single, self-contained folder and makes the sync topology
-explicit through a config table rather than hardwired paths.
+
+We recieve a downstream from an upstream of anoter marble repo.
+We categorize and memorize it with our configuration.
+Put it in the knowledge base, and create an upstream message for what happened and where.
+Other marbles can consume this upstream and sort that info into their memory.
 
 ---
 
