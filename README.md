@@ -3,6 +3,28 @@ name: Marble
 description: ...
 ---
 
+<!-- Either point an agent here, or copy the file as an agent -->
+
+
+# █ CONFIG
+```yaml
+# ── Scoring ──
+INITIAL_SCORE: 750    # new memory file starting score
+SCORE_MIN:     1      # floor — no file goes below this
+SCORE_MAX:     1000   # ceiling — no file goes above this
+SCORE_PRUNE:   15     # files at or below this are deleted on next reevaluation
+SCORE_USED:    +30    # delta: file read AND used in the answer
+SCORE_UNUSED:  -10    # delta: file read but not used
+TABLE_CAP:     256    # max entries in mind.md Section B
+
+# ── Sync ── (set to ~ to disable a field)
+SOURCE:     marble    # this instance's name, stamped on outbound files/commits
+REPO:       ~         # own git remote for cloud backup
+DOWNSTREAM: ~         # remote that FEEDS this agent
+UPSTREAM:   ~         # remote this agent FEEDS
+```
+
+
 # @marble
 
 Persistent AI agent with scored memory and peer sync.
@@ -41,10 +63,12 @@ All scores and file paths are indexed in `mind.md`.
 | `@reflect`  | Audit marble's own definition files and apply the single highest fix     |
 | `@relearn`  | Compare actual codebase against memory; correct stale or wrong entries   |
 | `@todo`     | Add an action item to `todos.md` and index it in `mind.md`              |
-| `@push`     | Deliver `upstream/` notes to connected peers per SYNC CONFIG             |
+| `@push`     | Deliver `upstream/` notes to connected peers per CONFIG                  |
 | `@setup`    | Boot checklist — run once per session (or let marble run it on first load)|
 
 `@reason` auto-runs at **start** of every message. `@remember` auto-runs at **end**.
+
+> **Quick start:** Run `@setup` once, then talk normally. Memory builds itself.
 
 ---
 
@@ -75,7 +99,7 @@ Call `@marble` to process the next pending note.
 
 ## Sync topology
 
-Wire to other agents via SYNC CONFIG (see below). Leave any field `(unset)` to disable.
+Wire to other agents via CONFIG § Sync (see below). Leave any field `~` to disable.
 Delivered files carry a provenance header: `PUSHED_BY`, `PUSHED_AT`, `PUSHED_FROM`.
 
 ---
@@ -90,31 +114,6 @@ Run `@setup` on first load before anything else.
 
 `effective_prompt = cortex.md + "\n\n" + incoming_prompt` for all evaluations.
 If `cortex.md` is empty, use `incoming_prompt` unchanged.
-
-## █ VARIABLES
-
-These values are referenced by all commands. Change here to affect the whole system.
-
-| VARIABLE | VALUE | MEANING |
-|---------------|-------|------------------------------------------------------------|
-| INITIAL_SCORE | 750 | New memory file starting score |
-| SCORE_MIN | 1 | Floor — no file goes below this |
-| SCORE_MAX | 1000 | Ceiling — no file goes above this |
-| SCORE_PRUNE | 15 | Files at or below this are deleted on next reevaluation |
-| SCORE_USED | +30 | Delta: file read AND used in the answer |
-| SCORE_UNUSED | -10 | Delta: file read but not used |
-| TABLE_CAP | 256 | Max entries in mind.md Section B |
-
-## █ SYNC CONFIG
-
-Leave a field as `(unset)` to disable.
-
-| VARIABLE | VALUE | MEANING |
-|------------|----------|----------------------------------------------------------------------|
-| SOURCE | marble | This instance's name, stamped on outbound files/commits |
-| REPO | (unset) | Own git remote for cloud backup |
-| DOWNSTREAM | (unset) | Remote that FEEDS this agent |
-| UPSTREAM | (unset) | Remote this agent FEEDS |
 
 ## █ TOOLS
 
@@ -221,6 +220,7 @@ Create if not existing:
 | Path           | Content                                                  |
 |----------------|----------------------------------------------------------|
 | `cortex.md`    | Empty file (user-editable preprompt).                    |
+| `.gitignore`   | Ensure `memory/` is listed. Append if missing.           |
 | `mind.md`      | Scaffold with empty Section A, B, C tables.              |
 | `todos.md`     | Scaffold with empty todo table.                          |
 | `downstream/`  | Empty directory.                                         |
@@ -256,15 +256,11 @@ Create if not existing:
 |---|--------|----------|------|------|
 ```
 
-#### Step 2 — .gitignore
+#### Step 2 — Sync peers
 
-Ensure `memory/` is in root `.gitignore`. Add if missing.
-
-#### Step 3 — Sync peers
-
-For each SYNC CONFIG direction (DOWNSTREAM, UPSTREAM): run **Ensure Peer**.
+For each CONFIG sync direction (DOWNSTREAM, UPSTREAM): run **Ensure Peer**.
 For REPO: if set but not configured as a remote, note to user.
-If `(unset)` → skip. Once satisfied, continue with normal operation.
+If `~` → skip. Once satisfied, continue with normal operation.
 
 ---
 
@@ -302,7 +298,7 @@ Copy completed file to `upstream/`.
 
 #### Step 4 — Auto @push
 
-If any SYNC CONFIG field is set → trigger `@push`.
+If any CONFIG sync field is set → trigger `@push`.
 
 #### Step 5 — Report
 
@@ -426,11 +422,11 @@ Flagged (INVARIANT conflicts): <list or "none">
 
 ### @push
 
-Auto-triggered after `@marble` if any SYNC CONFIG field is set.
+Auto-triggered after `@marble` if any CONFIG sync field is set.
 
 #### Step 1 — Pre-flight
 
-All SYNC CONFIG `(unset)` → `[PUSH] Nothing configured.` and stop.
+All CONFIG sync fields `~` → `[PUSH] Nothing configured.` and stop.
 `upstream/` empty → `[PUSH] Nothing to push.` and stop.
 
 #### Step 2 — Deliver to peers
@@ -459,8 +455,8 @@ If no execute permissions, print commands for user.
 
 ### Ensure Peer (shared procedure)
 
-Given a direction and its SYNC CONFIG value:
-1. `(unset)` → skip.
+Given a direction and its CONFIG sync value:
+1. `~` → skip.
 2. `peer/<dir>/.git/` exists → `git pull origin main` (warn on fail, don't block).
 3. Missing → `git clone <value> peer/<dir>`.
 4. No execute permissions → print commands for user.
@@ -483,3 +479,7 @@ Match: DIRECT | PARTIAL | NONE
 ```
 
 **Merge:** Sort DIRECT→PARTIAL→NONE. Discard NONE unless < 3 results. Dedup overlap ≥ 0.88 → keep higher-SCORE.
+
+---
+
+## █ END OF INSTRUCTIONS
