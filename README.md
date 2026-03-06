@@ -134,11 +134,12 @@ Single source of truth for every tracked file. Three sections, always in sync.
 
 **Section B — Master File List:** One row per tracked file. Cap: TABLE_CAP entries. Sorted descending by SCORE. Over cap → drop lowest-scored non-INVARIANT entry.
 
-Fields: `SCORE | Category | HASH | PATH`
+Fields: `SCORE | Category | HASH | PATH | DESC`
 - **SCORE** — importance 0–1000.
 - **Category** — slash-separated, max 3 segments (e.g. `arch/db`).
 - **HASH** — `sha1(unix_ms + "|" + path)[:8]`. Computed once, never changes.
 - **PATH** — repo-relative path.
+- **DESC** — 5–10 word summary of the file's content. Set on creation, updated on any content change.
 
 **Section C — Open Todos:** Pending items from `todos.md`, sorted by category activity (Section A score desc). Done items removed immediately.
 
@@ -200,7 +201,7 @@ Clamp to `[SCORE_MIN, SCORE_MAX]`. Delete if `≤ SCORE_PRUNE`. Re-sort B, rebui
 
 After any memory file is created or modified:
 
-1. Insert/update row in Section B (re-sort descending).
+1. Insert/update row in Section B (re-sort descending). Set **DESC** to a 5–10 word summary of the file’s content.
 2. Update Section A for affected category (score = max of files in that category).
 3. Enforce TABLE_CAP — over 256 → drop lowest-scored non-INVARIANT row (delete file too).
 4. Rebuild Section C from `todos.md` pending items, sorted by category activity.
@@ -239,8 +240,8 @@ Create if not existing:
 |----------|-------|
 ---
 [SECTION B] Master File List
-| SCORE | Category | HASH | PATH |
-|-------|----------|------|------|
+| SCORE | Category | HASH | PATH | DESC |
+|-------|----------|------|------|------|
 ---
 [SECTION C] Open Todos (sorted by category activity)
 | # | Category | TODO |
@@ -317,22 +318,37 @@ Auto-runs at START of every message.
 
 #### Step 1 — Load and sort
 
+**Definitions:**
+- `effective_query` — `incoming_prompt` with any leading `@command` prefix stripped and whitespace trimmed.
+- `lexical_sim(A, B)` — Jaccard similarity on unique lowercased whitespace-split tokens: $|A \cap B| \;/\; |A \cup B|$. Punctuation is removed before splitting.
+
 1. Read `mind.md` Section B.
-2. Scan peer memory (`peer/*/memory/`) as supplementary (base SCORE 500, read-only).
-3. `task_score = stored_SCORE × lexical_sim(effective_query, category + path)`
-4. Re-order using interleaved round-robin. Result is the **processing queue**.
+2. Scan peer indexes (`peer/*/mind.md` Section B) as supplementary (base SCORE 500, read-only). Do NOT walk `peer/*/memory/` directories.
+3. `task_score = stored_SCORE × lexical_sim(effective_query, category + " " + path + " " + DESC)`. **Discard entries where `task_score < 0.05`** — they will not be read.
+4. Re-order remaining entries using interleaved round-robin. Result is the **processing queue**.
 
-#### Step 2 — Process with @spread
+#### Step 2 — Pre-filter from index (no file reads)
 
-Walk queue. For each file: read → invoke `@spread` → collect to context buffer.
-Early stop if: direct/INVARIANT match found, buffer ≥10 outputs, or all exhausted.
-Override: `@reason --limit N <text>` (default: 10).
+Walk queue. For each entry compute `relevance = lexical_sim(effective_query, DESC + " " + category)`.
 
-#### Step 3 — Reevaluate scores
+- `relevance < 0.50` → **skip entirely**. Do not open file. Apply `SCORE_UNUSED`.
+- `relevance ≥ 0.50` → **candidate**. Proceed to Step 3.
+
+Early stop if ≥ 5 candidates collected or queue exhausted.
+Override: `@reason --limit N <text>` (default: 5).
+
+#### Step 3 — Deep read (on demand)
+
+For each candidate from Step 2, **in descending relevance order**:
+1. Read full file body → invoke `@spread` → collect output.
+2. Follow **one level of LINKS** — for each HASH in the candidate's `LINKS:` field, read that file's header. If its `relevance ≥ 0.50` → read its body too and add to output. Do NOT follow the linked file's own LINKS (no recursion).
+3. Early stop if: direct/INVARIANT match found, or buffer ≥ 5 full outputs.
+
+#### Step 4 — Reevaluate scores
 
 Per § Score Reevaluation. Peers read-only.
 
-#### Step 4 — Return
+#### Step 5 — Return
 
 ```
 [CONTEXT FROM MEMORY]
@@ -467,7 +483,7 @@ Given a direction and its CONFIG sync value:
 
 Fan-out processor called by `@reason`. Maps to: Copilot `/fleet`, Claude `runSubagent`, OpenAI parallel calls, or sequential fallback.
 
-**Input:** `QUERY` + `INPUTS: [{ id, path, content }, ...]`
+**Input:** `QUERY` + `INPUTS: [{ id, path, content }, ...]` (max 5 items per batch, or `--limit N`)
 
 **Per-subagent output:**
 ```
