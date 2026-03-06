@@ -1,10 +1,14 @@
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 name: Marble
 description: ...
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 █ @marble
@@ -56,7 +60,9 @@ INPUT_DIR:  input     # inbox folder name
 OUTPUT_DIR: output    # outbox folder name
 ```
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 ```
 
@@ -85,7 +91,9 @@ Memory is scored 1–1000: high-scoring facts surface first, unused facts decay,
 All scores and file paths are indexed in `mind.md`.
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 ```
 
@@ -108,7 +116,9 @@ All scores and file paths are indexed in `mind.md`.
 
 ```
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 TABLES
 
@@ -249,10 +259,14 @@ jobs:
           user_prompt = (
               f"Process this input note using the @marble intake procedure.\n\n"
               
-              f"────────────────────────────────────────────────────────────────────────────────
               
-              \n{note_text}\n────────────────────────────────────────────────────────────────────────────────
+              f"---
+              
+
+              
+              \n{note_text}\n---
               "
+
           )
 
           # Call the LLM
@@ -297,8 +311,10 @@ jobs:
               f"# Marble response — {note_path}\n"
               f"Processed: {now}\nProvider: {provider}\nModel: {model}\n\n"
               
-              f"────────────────────────────────────────────────────────────────────────────────
-              \n\n{reply}\n"
+              
+              f"---
+              \n\n{
+              reply}\n"
           )
 
           print(f"[INTAKE] Processed: {note_path}")
@@ -320,7 +336,9 @@ jobs:
 ```
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 █ INPUT NOTES
@@ -347,7 +365,9 @@ AI-authored example:
 Call `@marble` to process the next pending note.
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 █ SYNC TOPOLOGY
@@ -356,7 +376,9 @@ Wire to other agents via CONFIG § Sync (see below). Leave any field `~` to disa
 Delivered files carry a provenance header: `PUSHED_BY`, `PUSHED_AT`, `PUSHED_FROM`.
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 <!-- AI INSTRUCTIONS — everything below is for the agent -->
@@ -397,7 +419,9 @@ Scripts under `tools/`. One file per tool, named descriptively.
 - If execution needed but no permissions → inform the user.
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 █ MEMORY RULES
@@ -419,7 +443,9 @@ Fields: `SCORE │ Category │ HASH │ PATH`
 /Section C — Open Todos:/ Pending items from `todos.md`, sorted by category activity (Section A score desc). Done items removed immediately.
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 ❚ MEMORY FILE LAYOUT
@@ -484,7 +510,9 @@ After any memory file is created or modified:
 4. Rebuild Section C from `todos.md` pending items, sorted by category activity.
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 █ COMMAND IMPLEMENTATION
@@ -564,7 +592,9 @@ For REPO: if set but not configured as a remote, note to user.
 If `~` → skip. Once satisfied, continue with normal operation.
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 █ @marble (intake)
@@ -613,7 +643,9 @@ If any CONFIG sync field is set → trigger `@push`.
 ```
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 █ @reason
@@ -647,7 +679,9 @@ Sources: <list of HASH │ PATH>
 ```
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 █ @remember
@@ -680,7 +714,9 @@ Used by `@remember`, `@todo`, and any command needing a category.
 Per § Updating mind.md After a Write.
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 █ @reflect
@@ -693,7 +729,9 @@ If `@reflect <text>` → focus on that.
 3. Implement /one/ fix. Report what/why. Call again for more.
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 █ @relearn
@@ -715,7 +753,9 @@ Flagged (INVARIANT conflicts): <list or "none">
 `@relearn <path>` restricts to that file/directory.
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 █ @todo
@@ -732,7 +772,9 @@ Flagged (INVARIANT conflicts): <list or "none">
 ```
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 █ @work
@@ -767,7 +809,9 @@ Result: <one-line summary of what was done>
 ```
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 █ @push (internal)
@@ -802,7 +846,9 @@ If no execute permissions, print commands for user.
 ```
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 █ Ensure Peer (shared procedure)
@@ -814,7 +860,9 @@ Given a direction and its CONFIG sync value:
 4. No execute permissions → print commands for user.
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 █ @spread (internal)
@@ -835,7 +883,9 @@ Match: DIRECT │ PARTIAL │ NONE
 /Merge:/ Sort DIRECT→PARTIAL→NONE. Discard NONE unless < 3 results. Dedup overlap ≥ 0.88 → keep higher-SCORE.
 
 
-────────────────────────────────────────────────────────────────────────────────
+
+---
+
 
 
 ## █ END OF INSTRUCTIONS
