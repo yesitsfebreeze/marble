@@ -31,7 +31,7 @@ Download `README.md` (the agent definition) into the `@marble/` directory.
 █ VARIABLES USED IN THIS DOCUMENT
 
 ```yaml
-# ── Scoring ──
+# █ Scoring
 INITIAL_SCORE: 750    # new memory file starting score
 SCORE_MIN:     1      # floor — no file goes below this
 SCORE_MAX:     1000   # ceiling — no file goes above this
@@ -40,17 +40,27 @@ SCORE_USED:    +30    # delta: file read AND used in the answer
 SCORE_UNUSED:  -10    # delta: file read but not used
 TABLE_CAP:     256    # max entries in mind.md Section B
 
-# ── LLM ──
+# █ LLM
 PROVIDER:   anthropic          # anthropic │ openai
 MODEL:      claude-sonnet-4-20250514  # model name passed to the SDK
 
-# ── Sync ── (set to ~ to disable a field)
+# █ Sync (set to ~ to disable sync entirely)
 SOURCE:     marble    # this instance's name, stamped on outbound files/commits
 REPO:       ~         # own git remote for cloud backup
-DOWNSTREAM: ~         # remote that FEEDS this agent
-UPSTREAM:   ~         # remote this agent FEEDS
 INPUT_DIR:  input     # inbox folder name
 OUTPUT_DIR: output    # outbox folder name
+
+# █ Peers
+# Each row defines a remote and its sync direction(s).
+# A peer marked INPUT feeds this agent; OUTPUT means this agent feeds it.
+# A peer can be both. Set PEERS to ~ to disable.
+#
+# █ NAME        █ URL                                    █ INPUT █ OUTPUT
+# │             │                                        │       │
+# │ agent-a     │ git@github.com:org/agent-a.git         │ yes   │ no
+# │ agent-b     │ git@github.com:org/agent-b.git         │ no    │ yes
+# │ agent-c     │ git@github.com:org/agent-c.git         │ yes   │ yes
+PEERS: ~
 ```
 
 
@@ -168,6 +178,34 @@ See [README.md](../README.md) for all agent instructions.
 ```
 
 Or copy the AI Instructions section from this README into your Copilot instructions file.
+
+❚ 5. MCP SERVER (optional)
+
+Marble ships an MCP server under `src/` so any MCP-compatible host (VS Code Copilot, Claude Desktop, Cursor, etc.) can invoke Marble commands as tools.
+
+**Build:**
+```bash
+npm install && npm run build
+```
+
+**Configure your MCP client** — add to your `mcp.json` / `settings.json` / `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "marble": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "cwd": "<path-to-marble-repo>"
+    }
+  }
+}
+```
+
+**Exposed tools:** `setup`, `marble`, `reason`, `remember`, `todo`, `reflect`, `work`, `relearn`
+**Resources:** `marble://mind`, `marble://todos`, `marble://cortex`
+**Prompts:** `marble-system` (full system prompt from README + cortex)
+
+Set `MARBLE_ROOT` env var to override the workspace directory (defaults to cwd).
 
 ❚ Workflow template
 
@@ -365,8 +403,9 @@ Call `@marble` to process the next pending note.
 
 █ SYNC TOPOLOGY
 
-Wire to other agents via CONFIG § Sync (see below). Leave any field `~` to disable.
-Delivered files carry a provenance header: `PUSHED_BY`, `PUSHED_AT`, `PUSHED_FROM`.
+Wire to other agents via CONFIG § Peers. Set `PEERS: ~` to disable.
+Each peer URL is tagged INPUT, OUTPUT, or both — a single peer can serve as both.
+Delivered files carry a provenance header: `PUSHED_BY`, `PUSHED_AT`, `PUSHED_TO`.
 
 
 
@@ -580,9 +619,9 @@ Create if not existing:
 
 ❚ STEP 2 — Sync peers
 
-For each CONFIG sync direction (DOWNSTREAM, UPSTREAM): run /Ensure Peer/.
+For each entry in CONFIG PEERS: run /Ensure Peer/.
 For REPO: if set but not configured as a remote, note to user.
-If `~` → skip. Once satisfied, continue with normal operation.
+If `PEERS: ~` → skip. Once satisfied, continue with normal operation.
 
 
 
@@ -624,7 +663,7 @@ Copy completed file to `output/`.
 
 ❚ STEP 4 — Auto @push
 
-If any CONFIG sync field is set → trigger `@push`.
+If PEERS is not `~` → trigger `@push`.
 
 ❚ STEP 5 — Report
 
@@ -809,20 +848,20 @@ Result: <one-line summary of what was done>
 
 █ @push (internal)
 
-Auto-triggered after `@marble` if any CONFIG sync field is set. Not a user-facing command.
+Auto-triggered after `@marble` if PEERS is not `~`. Not a user-facing command.
 
 ❚ STEP 1 — Pre-flight
 
-All CONFIG sync fields `~` → `[PUSH] Nothing configured.` and stop.
+`PEERS: ~` and `REPO: ~` → `[PUSH] Nothing configured.` and stop.
 `output/` empty → `[PUSH] Nothing to push.` and stop.
 
 ❚ STEP 2 — Deliver to peers
 
-For each configured direction (DOWNSTREAM, UPSTREAM):
-1. /Ensure Peer/.
-2. Prepend provenance header (`PUSHED_BY: <SOURCE>`, `PUSHED_AT: <ISO-8601>`, `PUSHED_FROM: <direction>`).
-3. Write to `peer/<direction>/input/<file>`.
-4. `cd peer/<direction> && git add input/ && git commit -m "input: sync from <SOURCE> [auto]" && git push origin main`
+For each peer in PEERS whose OUTPUT flag is `yes`:
+1. /Ensure Peer/ (by NAME).
+2. Prepend provenance header (`PUSHED_BY: <SOURCE>`, `PUSHED_AT: <ISO-8601>`, `PUSHED_TO: <NAME>`).
+3. Write to `peer/<NAME>/input/<file>`.
+4. `cd peer/<NAME> && git add input/ && git commit -m "input: sync from <SOURCE> [auto]" && git push origin main`
 
 ❚ STEP 3 — REPO backup (if set)
 
@@ -833,9 +872,8 @@ If no execute permissions, print commands for user.
 
 ```
 [PUSH COMPLETE]
-  DOWNSTREAM: <N files │ skipped>
-  UPSTREAM:   <N files │ skipped>
-  REPO:       <pushed │ skipped>
+  Peers pushed: <name1 (N files), name2 (N files), … │ none>
+  REPO:         <pushed │ skipped>
 ```
 
 
@@ -846,11 +884,10 @@ If no execute permissions, print commands for user.
 
 █ Ensure Peer (shared procedure)
 
-Given a direction and its CONFIG sync value:
-1. `~` → skip.
-2. `peer/<dir>/.git/` exists → `git pull origin main` (warn on fail, don't block).
-3. Missing → `git clone <value> peer/<dir>`.
-4. No execute permissions → print commands for user.
+Given a peer NAME and URL from the PEERS table:
+1. `peer/<NAME>/.git/` exists → `git pull origin main` (warn on fail, don't block).
+2. Missing → `git clone <URL> peer/<NAME>`.
+3. No execute permissions → print commands for user.
 
 
 
