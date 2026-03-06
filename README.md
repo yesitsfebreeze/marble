@@ -324,9 +324,22 @@ Run `@setup` on first load before anything else.
 
 ❚ LIFECYCLE — AUTO-RUN RULES
 
+`@setup` auto-runs when README.md has changed (see § README Change Detection).
 `@reason` auto-runs at the START of every message (load memory context).
 `@remember` auto-runs at the END of every message (persist one new fact).
 These two hooks are non-optional and frame every interaction.
+
+❚ README CHANGE DETECTION
+
+Before `@reason`, check if README.md has been modified since the last `@setup`:
+
+1. Read `.marble_state`. If it does not exist → run `@setup` (first boot).
+2. Compare the stored `README_MTIME` value against the current filesystem mtime of `README.md`.
+3. If the current mtime is newer (or `.marble_state` is missing/corrupt) → run `@setup`.
+4. After `@setup` completes, it writes the current README.md mtime into `.marble_state`.
+
+This ensures any edit to the README (variables, templates, instructions) automatically
+regenerates all derived files on the next agent interaction.
 
 ❚ PROMPT CONDITIONING
 
@@ -438,7 +451,7 @@ Create if not existing:
 █ Path                           █ Content
 |                                |
 | `cortex.md`                    | Empty file (user-editable preprompt).
-| `.gitignore`                   | Ensure `memory/` is listed. Append if missing.
+| `.gitignore`                   | Ensure `memory/` and `.marble_state` are listed. Append if missing.
 | `mind.md`                      | Scaffold with empty Section A, B, C tables.
 | `todos.md`                     | Scaffold with empty todo table.
 | `input/`                       | Empty directory.
@@ -446,6 +459,8 @@ Create if not existing:
 | `memory/`                      | Empty directory.
 | `tools/`                       | Empty directory.
 | `peer/`                        | Empty directory.
+| `.marble_state`                | Write `README_MTIME: <current mtime of README.md>`.
+|                                | Always overwrite on every `@setup` run.
 | `.github/workflows/marble.yml` | generated from workflow template. Replace:
 |                                | {{PROVIDER}}`, `{{MODEL}}`, `{{SOURCE}}` with CONFIG values.
 |                                | Always overwrite — re-running `@setup` regenerates it.
@@ -482,11 +497,15 @@ Create if not existing:
 
 /todos.md template:/
 ```markdown
-# TODOS
-# Central todo list. Managed by @todo.
----
-| # | STATUS | Category | DATE | TODO |
-|---|--------|----------|------|------|
+███ TODOS
+|
+| Central todo list. Managed by @todo.
+|
+|
+█ #  █ STATUS  █ Category █ DATE       █ TODO
+|    |         |          |            |
+| .  | ...     | ...      | ...        | ...
+|
 ```
 
 ❚ STEP 2 — Sync peers
