@@ -252,6 +252,26 @@ Before `@reason`, check if README.md has been modified since the last `@setup`:
 This ensures any edit to the README (variables, templates, instructions) automatically
 regenerates all derived files on the next agent interaction.
 
+#### Platform Tooling — Using Cached Tools
+
+When performing file operations (`@reason`, `@relearn`, `@reflect`, `@marble`),
+read `FILE_SEARCH` and `DIR_LIST` from `.marble_state` and use the detected tool.
+Construct the appropriate command yourself based on the tool name — you know
+the tool's CLI, so invoke it correctly for the task at hand.
+
+Always apply [Ignore](#ignore) patterns when constructing commands
+(e.g. `rg --glob '!node_modules/'`, `fd --exclude node_modules`).
+
+If `builtin` is set, use only the agent's native file-reading capabilities
+(no shell commands).
+
+If execution of the cached tool fails at runtime (e.g. uninstalled since last
+`@setup`), fall back to `builtin` for that invocation and flag it:
+```
+[TOOLING] FILE_SEARCH tool '<name>' unavailable — using builtin fallback.
+```
+This does NOT update `.marble_state`; the next `@setup` will re-probe.
+
 #### Prompt Conditioning — CORTEX Filtering
 
 The [CORTEX](#cortex) section at the top of this README defines two filter lists:
@@ -394,7 +414,30 @@ Create if not existing:
 | `memory/` | Empty directory. |
 | `tools/` | Empty directory. |
 | `sources.md` | Scaffold with empty sources table. |
-| `.marble_state` | `README_MTIME: <current mtime>` and `MSG_COUNT: 0`. Always overwrite on every `@setup` run. |
+| `.marble_state` | `README_MTIME: <current mtime>`, `MSG_COUNT: 0`, and platform tooling results (see Step 2). Always overwrite on every `@setup` run. |
+
+#### Step 2 — Platform Tooling Detection
+
+Detect the fastest available method on the current OS for two jobs:
+
+1. **File content search** — recursively find files containing a text pattern.
+2. **Directory listing** — recursively enumerate files in a tree.
+
+The agent determines the OS, discovers what tools are installed, and picks
+the fastest option for each job. No predefined list — use whatever the
+platform offers. Write results to `.marble_state`:
+
+```
+PLATFORM:      <detected OS>
+FILE_SEARCH:   <tool or method chosen>
+DIR_LIST:      <tool or method chosen>
+```
+
+If nothing suitable is found for a job → set value to `builtin` (use only the
+agent's native file-reading capabilities, no shell commands).
+
+> On subsequent runs, read `FILE_SEARCH` and `DIR_LIST` from `.marble_state`
+> instead of re-probing. Re-probing only happens on `@setup`.
 
 **mind.md template:**
 ```markdown
