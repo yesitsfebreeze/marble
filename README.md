@@ -6,8 +6,6 @@ description: Persistent AI agent with scored memory. Single-file config.
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/%F0%9F%AA%A8-MARBLE-white?style=for-the-badge&labelColor=1a1a2e&color=e94560">
-  <source media="(prefers-color-scheme: light)" srcset="https://img.shields.io/badge/%F0%9F%AA%A8-MARBLE-black?style=for-the-badge&labelColor=f0f0f0&color=0f3460">
   <img alt="Marble" src="https://img.shields.io/badge/%F0%9F%AA%A8-MARBLE-black?style=for-the-badge&labelColor=f0f0f0&color=0f3460" height="60">
 </picture>
 
